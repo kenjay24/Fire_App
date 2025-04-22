@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<style>
+#city-select {
+    width: 150px; /* Adjust width as needed */
+}
+
+#map {
+    width: 100%;
+    height: 65vh;
+    border-radius: 10px;
+    border-top: 5px solid rgb(108, 23, 235); /* Change the color here */
+    border-bottom: 5px solid rgb(108, 23, 235); /* Change the color here */
+    position: relative;
+    outline: none;
+}
+</style>
+<div class="page-inner">
+    <div class="page-header">
+        <h4 class="page-title">Dashboard</h4>
+        <ul class="breadcrumbs">
+            <li class="nav-home">
+                <a href="#">
+                    <i class="flaticon-home"></i>
+                </a>
+            </li>
+            <li class="separator">
+                <i class="flaticon-right-arrow"></i>
+            </li>
+            <li class="nav-item">
+                <a href="#">Maps</a>
+            </li>
+            <li class="separator">
+                <i class="flaticon-right-arrow"></i>
+            </li>
+            <li class="nav-item">
+                <a href="#">Stations</a>
+            </li>
+        </ul>
+    </div>
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card card-transparent">
+                <div class="card-header">
+                    <h4 class="card-title text-center">Fire Incidents</h4>
+                    <p class="card-category text-center">Categorize by city and explore incidents. Developed by our partners at <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>.</p>
+                </div>
+                <div class="card-body">
+                    <div class="col-md-12">
+                        <!-- Dropdown for selecting city and Go button -->
+                        <div class="dropdown-container">
+                            <select id="city-select" style="border-radius: 5px; border-top: 3px solid rgb(114, 150, 228); background-color: aliceblue;">
+                                <option value="" selected disabled>Select City</option>
+                                <!-- Dropdown options will be populated dynamically -->
+                            </select>
+                            <button id="goButton" type="submit" style="border-radius: 5px; border: none; background-color: rgb(54, 124, 255); color: white;">Go</button>
+                        </div>
+                        <div id="map" style="width: 100%; height: 400px"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Function to populate city options in the dropdown menu
+    function populateCityOptions(cities) {
+        var citySelect = document.getElementById("city-select");
+        citySelect.innerHTML = ""; // Clear existing options
+
+        // Add a default option
+        var defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.text = "Select City";
+        defaultOption.disabled = true;
+        defaultOption.selected = true;
+        citySelect.appendChild(defaultOption);
+
+        // Populate dropdown options with city names
+        cities.forEach(function(city) {
+            var option = document.createElement("option");
+            option.value = city.name;
+            option.text = city.name;
+            citySelect.appendChild(option);
+        });
+
+        console.log("Dropdown populated with cities:", cities);
+    }
+
+    // Function to handle "Go" button click
+    document.getElementById("goButton").addEventListener("click", function() {
+        var citySelect = document.getElementById("city-select");
+        var selectedCity = citySelect.value;
+
+        // Call the function to set map view to the selected city
+        goToCity(selectedCity);
+    });
+
+    // Function to set map view to the selected city
+    function goToCity(selectedCity) {
+        // Find the city object corresponding to the selected city
+        var selectedCityObject = markerData.find(function(city) {
+            return city.name === selectedCity;
+        });
+
+        // Check if the selected city object exists
+        if (selectedCityObject) {
+            // Extract latitude and longitude from the selected city object
+            var latitude = parseFloat(selectedCityObject.latitude);
+            var longitude = parseFloat(selectedCityObject.longitude);
+
+            // Set the map view to the coordinates of the selected city
+            map.setView([latitude, longitude], 13);
+        } else {
+            console.error('City not found:', selectedCity);
+        }
+    }
+
+    // Fetch data and populate dropdown when the page loads
+    var markerData = {{ fireIncidents|safe }};
+    populateCityOptions(markerData);
+});
+
+// Remaining JavaScript code for Leaflet map and markers
+var map = L.map('map').setView([9.81644, 118.72239], 13);
+
+var fireIcon = L.icon({
+    iconUrl: '../static/img/fireheart.png', // Replace with the correct path to your red marker icon
+    iconSize: [50, 50], // Adjust the size as needed
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+
+// Create an array to hold all the markers
+var markers = [];
+
+// Define the marker data
+var markerData = {{ fireIncidents|safe }};
+
+console.log("Marker Data:", markerData); // Log markerData to check its structure
+
+// Loop through the marker data and create markers
+markerData.forEach(function (data) {
+    var latitude = parseFloat(data.latitude);
+    var longitude = parseFloat(data.longitude);
+
+    console.log("Latitude:", latitude, "Longitude:", longitude); // Log latitude and longitude for each marker
+
+    var marker = L.marker([latitude, longitude], { icon: fireIcon }).addTo(map);
+
+    // Create a popup and set its content
+    var popupContent = data.name;
+    var popup = L.popup().setContent(popupContent);
+
+    marker.bindPopup(popupContent);
+
+    // Bind mouseover and mouseout events to the marker
+    marker.on('mouseover', function (e) {
+        this.openPopup();
+    });
+
+    marker.on('mouseout', function (e) {
+        this.closePopup();
+    });
+
+    // Add the marker to the markers array
+    markers.push(marker);
+});
+</script>
+
+{% endblock %}
